@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>¹H NMR ビューア</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Yu Gothic",sans-serif;color:#16253b;background:#eef3f7;--line:#d4dfeb;--muted:#425a72;--accent:#1355b5;--paper:#fff}
+*{box-sizing:border-box}body{margin:0}button,label,input{font:inherit}button,.file-button{color:inherit;cursor:pointer;border:1px solid var(--line);padding:9px 13px;border-radius:8px;background:white;white-space:nowrap}button:hover,.file-button:hover{background:#eaf2ff}button:disabled{opacity:.48;cursor:default}button:focus-visible,.file-button:focus-within,input:focus-visible,canvas:focus-visible{outline:3px solid #6d9be1;outline-offset:2px}.primary{background:var(--accent);color:white;border-color:var(--accent)}.primary:hover{background:#104995}.sr{position:absolute;width:1px;height:1px;padding:0;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+main{max-width:1280px;margin:0 auto;padding:28px 24px 38px}header{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:17px}h1{margin:0 0 5px;font-size:clamp(26px,4vw,39px);letter-spacing:-.045em;line-height:1.1}h2{font-size:17px;margin:0}.subtitle,.hint{margin:0;font-size:13px;color:var(--muted)}.drop{border:1px dashed #9db9da;border-radius:12px;padding:13px 15px;background:#f7faff;display:flex;flex-wrap:wrap;align-items:center;gap:9px 12px;margin-bottom:14px}.drop.active{background:#dceaff;border-color:var(--accent)}.card{border:1px solid var(--line);background:var(--paper);border-radius:13px;overflow:hidden}.plot-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line)}#fileName{overflow-wrap:anywhere}#info{margin-top:4px}.toolbar{display:flex;gap:6px;flex-wrap:wrap}.toolbar button{padding:6px 11px}.toolbar [aria-pressed=true]{background:#dceaff;border-color:#87a9d7;color:#123b78}.chart{position:relative}canvas{display:block;width:100%;height:clamp(305px,51vh,555px);touch-action:pan-y}canvas[data-mode=zoom],canvas[data-mode=integrate]{touch-action:none}.empty{pointer-events:none;position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:20px;color:var(--muted)}.empty strong{color:#253e59;margin-bottom:6px}.empty[hidden]{display:none}.foot{min-height:41px;padding:9px 15px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}output{font-variant-numeric:tabular-nums}.error{color:#a82e24}.results{margin-top:13px;padding:12px 15px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.results button{padding:5px 9px}.results h2{font-size:14px}.peaks{flex:1;min-width:175px;display:flex;flex-wrap:wrap;gap:6px}.chip{font-variant-numeric:tabular-nums;background:#f0f5fe;color:#163963;padding:4px 8px;border-radius:6px;font-size:13px}.range{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.range input{width:74px;border:1px solid var(--line);border-radius:6px;padding:5px 6px}.range label{font-size:13px;color:var(--muted)}.plot-options{display:flex;gap:14px;justify-content:space-between;flex-wrap:wrap;align-items:center;margin:10px 0}.plot-options button{padding:5px 9px}
+@media(max-width:580px){main{padding:18px 12px 24px}header{align-items:start}.drop .hint{width:100%}.foot,.plot-head{padding-inline:10px}.toolbar button{padding:6px 8px}}
+
+.integrals{margin-top:13px;padding:13px 15px}.integral-tools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:10px 0}
+.integral-tools button,.integrals td button{padding:5px 9px}.integral-scroll{overflow-x:auto}.integrals table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.integrals th,.integrals td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}.integrals th{color:var(--muted)}
+#referenceH{width:65px;padding:5px 6px;border:1px solid var(--line);border-radius:6px}.integrals output{display:block;margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div><h1>¹H NMR ビューア</h1><p class="subtitle">ファイルを開いてスペクトルを確認</p></div>
+  <button id="demo">サンプルを開く</button>
+</header>
+<section class="drop" id="drop" aria-label="測定データの読み込み">
+  <label class="file-button primary"><input class="sr" id="file" type="file" accept=".jdf,.csv,.tsv,.txt">ファイルを選ぶ</label>
+  <span>またはここにドロップ</span>
+  <p class="hint">JEOL Delta（.jdf）・テキスト（横軸 ppm／縦軸 強度）</p>
+</section>
+<section class="card" aria-label="スペクトル">
+  <div class="plot-head">
+    <div><h2 id="fileName">スペクトル</h2><p class="hint" id="info">¹H NMR / 1D</p></div>
+    <div class="toolbar" role="group" aria-label="グラフの操作">
+      <button type="button" id="peak" aria-pressed="true" disabled>ピークを拾う</button>
+      <button type="button" id="zoom" aria-pressed="false" disabled>ドラッグ拡大</button>
+      <button type="button" id="integrate" aria-pressed="false" disabled>積分</button>
+      <button type="button" id="out" disabled>縮小</button>
+      <button type="button" id="reset" disabled>全範囲</button>
+    </div>
+  </div>
+  <div class="chart">
+    <canvas id="plot" data-mode="peak" aria-label="NMRスペクトル。横軸は右向きにppmが小さくなります。"></canvas>
+    <div class="empty" id="empty"><strong>測定データを開く</strong><span>「サンプルを開く」で操作を試せます</span></div>
+  </div>
+  <div class="foot"><p id="status" class="hint" role="status">ファイルはこのブラウザ内で処理します。</p><output id="position">— ppm</output></div>
+</section>
+<div class="plot-options">
+  <form class="range" id="range">
+    <label for="high">左端</label><input id="high" type="number" step="any" required disabled>
+    <label for="low">右端</label><input id="low" type="number" step="any" required disabled>
+    <span class="hint">ppm</span><button id="apply" disabled>範囲を指定</button>
+  </form>
+  <span class="hint">ホイールでも拡大・縮小</span>
+</div>
+<section class="results card" aria-label="選択したピーク">
+  <h2>選択したピーク</h2><div id="peaks" class="peaks"><span class="hint">波形上のピーク付近をクリックまたはタップ</span></div><button type="button" id="clear" disabled>クリア</button>
+</section>
+<section class="integrals card" aria-labelledby="integralsTitle">
+  <h2 id="integralsTitle">積分値</h2>
+  <div class="integral-tools">
+    <form class="range" id="integralRange">
+      <label for="integralHigh">左端</label><input id="integralHigh" type="number" step="any" required disabled>
+      <label for="integralLow">右端</label><input id="integralLow" type="number" step="any" required disabled>
+      <span class="hint">ppm</span><button id="addIntegral" disabled>範囲を追加</button>
+    </form>
+    <div class="range">
+      <label for="referenceH">基準の水素数</label><input id="referenceH" type="number" min="0" step="any" value="1" disabled><span class="hint">H</span>
+    </div>
+  </div>
+  <div class="integral-scroll" id="integralTable" hidden>
+    <table>
+      <thead><tr><th scope="col">範囲（ppm）</th><th scope="col">面積（相対単位）</th><th scope="col">積分比（H）</th><th scope="col">基準</th><th scope="col">削除</th></tr></thead>
+      <tbody id="integralRows"></tbody>
+    </table>
+  </div>
+  <p class="hint" id="integralHint">処理済みスペクトルを開き、「積分」に切り替えてピーク全体をドラッグ。両端を結ぶ直線をベースラインにします。</p>
+  <output id="integralStatus" class="hint" aria-live="polite"></output>
+</section>
+</main>
+<script>
+"use strict";
+const byId = id => document.getElementById(id);
+const canvas = byId("plot");
+const ctx = canvas.getContext("2d");
+const decoder = new TextDecoder();
+const maxPoints = 1048576;
+const state = { data: null, lo: -1, hi: 11, mode: "peak", peaks: [], integrals: [], reference: null, drag: null, hover: null };
+let latestLoad = 0;
+
+function fail(message) {
+  throw new Error(message);
+}
+
+function readJdf(buffer) {
+  if (buffer.byteLength < 1360) fail("JDFヘッダーが途中で切れています。");
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const str = (offset, length) => decoder.decode(bytes.subarray(offset, offset + length)).split("\0")[0].trim();
+  const u32 = offset => view.getUint32(offset);
+  const f64 = offset => view.getFloat64(offset);
+  const byteOrder = view.getUint8(8);
+  if (byteOrder > 1) fail("このJDFのバイト順には対応していません。");
+  const little = byteOrder === 1;
+  const layout = view.getUint8(14);
+  const axisType = view.getUint8(24);
+  if (view.getUint8(12) !== 1 || (layout & 63) !== 1) fail("このJDFは1Dデータとして読み込めません。¹H NMRのファイルを選んでください。");
+  if (![1, 3].includes(axisType) || (layout >> 6) > 1 || (view.getUint8(172) >> 4) !== 0) {
+    fail("このJDFのデータ形式は未対応です。処理済みのppm・強度テキストでも開けます。");
+  }
+  const count = u32(176);
+  const first = u32(208);
+  const last = u32(240);
+  const start = u32(1284);
+  const length = u32(1288) * 4294967296 + u32(1292);
+  const sampleBytes = (layout >> 6) === 1 ? 4 : 8;
+  const sections = axisType === 3 ? 2 : 1;
+  if (count < 3 || count > maxPoints || first >= last || last >= count ||
+      start < 1360 || start + length > bytes.length || length < count * sampleBytes * sections) {
+    fail("JDFのデータ範囲が無効です。ファイルのサイズや形式を確認してください。");
+  }
+  const point = (index, section = 0) => {
+    const offset = start + (index + section * count) * sampleBytes;
+    return sampleBytes === 8 ? view.getFloat64(offset, little) : view.getFloat32(offset, little);
+  };
+  const parameters = new Map();
+  const paramStart = u32(1212);
+  const paramEnd = paramStart + u32(1216);
+  if (paramStart >= 1360 && paramEnd <= bytes.length && paramEnd - paramStart >= 16 && view.getUint32(paramStart, little) === 64) {
+    for (let p = paramStart + 16; p + 64 <= paramEnd; p += 64) {
+      const name = str(p + 36, 28).toLowerCase();
+      const type = view.getUint32(p + 32, little);
+      const scale = 10 ** view.getInt16(p + 4, little);
+      if (type === 0) parameters.set(name, str(p + 16, 16));
+      if (type === 1) parameters.set(name, view.getInt32(p + 16, little) * scale);
+      if (type === 2) parameters.set(name, view.getFloat64(p + 16, little) * scale);
+    }
+  }
+  const nucleus = String(parameters.get("x_domain") || str(808, 32)).replace(/\s/g, "");
+  if (!/^(1H|H1|Proton|¹H)$/i.test(nucleus)) fail("このJDFの観測核は¹Hとして確認できません。¹H NMRのファイルを選んでください。");
+  const frequency = Number(parameters.get("x_freq") || f64(1064) * 1e6);
+  const unit = view.getUint8(33);
+  if (unit === 26) {
+    const axisStart = f64(272);
+    const axisStep = (f64(336) - axisStart) / (count - 1);
+    const n = last - first + 1;
+    const ppm = new Float64Array(n);
+    const intensity = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      ppm[i] = axisStart + (first + i) * axisStep;
+      intensity[i] = point(first + i);
+    }
+    return spectrum(ppm, intensity, "Delta JDF · 処理済み", frequency / 1e6);
+  }
+  if (unit !== 28 || sections !== 2) fail("このJDFの横軸は未対応です。ppm軸の処理済みデータか複素FIDを選んでください。");
+  const sweep = Number(parameters.get("x_sweep"));
+  const carrier = Number(parameters.get("x_offset"));
+  if (!(sweep > 0 && frequency > 0 && Number.isFinite(carrier))) fail("FIDの周波数・観測幅・オフセットを読み取れません。");
+  return processFid(point, first, last, sweep, frequency, carrier, parameters);
+}
+
+function processFid(point, first, last, sweep, frequency, carrier, parameters) {
+  const orders = String(parameters.get("orders") || "").split(/\s+/).map(Number);
+  const factors = String(parameters.get("factors") || "").split(/\s+/).map(Number);
+  let delay = 0;
+  if (orders[0] > 0 && orders[0] === factors.length && orders.length === factors.length + 1 &&
+      factors.every(x => x > 0) && orders.slice(1).every(x => x > 0)) {
+    for (let i = 0; i < factors.length; i++) {
+      const decimation = factors.slice(i).reduce((product, value) => product * value, 1);
+      delay += (orders[i + 1] - 1) / (2 * decimation);
+    }
+  }
+  const skip = Math.round(delay);
+  const count = last - first + 1;
+  const begin = skip < count / 4 ? first + skip : first;
+  const size = Math.min(maxPoints, 2 ** Math.ceil(Math.log2(count * 2)));
+  const real = new Float64Array(size);
+  const imag = new Float64Array(size);
+  for (let i = begin; i <= last; i++) {
+    real[i - begin] = point(i);
+    // This sign maps the public JEOL FID to its matching Delta ppm spectrum.
+    imag[i - begin] = point(i, 1);
+  }
+  fft(real, imag);
+  const reference = frequency / (1 + carrier * 1e-6);
+  const step = sweep * 1e6 / (size * reference);
+  const ppm = new Float64Array(size);
+  const intensity = new Float64Array(size);
+  for (let i = 0; i < size; i++) {
+    const bin = (i + size / 2) % size;
+    ppm[i] = carrier + (size / 2 - i) * step;
+    intensity[i] = Math.hypot(real[bin], imag[bin]);
+  }
+  return spectrum(ppm, intensity, "Delta JDF · FIDから簡易FFT（絶対値）", frequency / 1e6, true);
+}
+
+function fft(real, imag) {
+  const size = real.length;
+  for (let i = 1, j = 0; i < size; i++) {
+    let bit = size >> 1;
+    while (j & bit) {
+      j ^= bit;
+      bit >>= 1;
+    }
+    j ^= bit;
+    if (i < j) {
+      [real[i], real[j]] = [real[j], real[i]];
+      [imag[i], imag[j]] = [imag[j], imag[i]];
+    }
+  }
+  for (let width = 2; width <= size; width *= 2) {
+    const half = width / 2;
+    const theta = -2 * Math.PI / width;
+    for (let j = 0; j < half; j++) {
+      const c = Math.cos(theta * j);
+      const s = Math.sin(theta * j);
+      for (let i = j; i < size; i += width) {
+        const k = i + half;
+        const a = real[k] * c - imag[k] * s;
+        const b = real[k] * s + imag[k] * c;
+        real[k] = real[i] - a;
+        imag[k] = imag[i] - b;
+        real[i] += a;
+        imag[i] += b;
+      }
+    }
+  }
+}
+
+function readText(text) {
+  const rows = text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/);
+  const x = [];
+  const y = [];
+  const numeric = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][+-]?\d+)?$/;
+  for (const [index, row] of rows.entries()) {
+    const line = row.trim();
+    if (!line || /^[#\/]/.test(line)) continue;
+    const cells = line.split(/[,;\t ]+/).map(cell => cell.replace(/^["']|["']$/g, ""));
+    if (x.length === maxPoints) fail("読み込めるデータは1,048,576点までです。");
+    if (cells.length === 2 && cells.every(cell => numeric.test(cell))) {
+      x.push(Number(cells[0].replace(/[dD]/, "e")));
+      y.push(Number(cells[1].replace(/[dD]/, "e")));
+    } else if (x.length || /^["']?[+-]?(\d|\.\d)/.test(line)) {
+      fail(`${index + 1}行目が2列の数値として読めません。1列目をppm、2列目を強度にしてください。`);
+    }
+  }
+  if (x.length < 3) fail("ppm・強度の2列の数値データが3点以上必要です。");
+  return spectrum(Float64Array.from(x), Float64Array.from(y), "テキスト · ppm / 強度");
+}
+
+function spectrum(ppm, intensity, label, frequency, raw = false) {
+  if (ppm[0] > ppm[ppm.length - 1]) {
+    ppm.reverse();
+    intensity.reverse();
+  }
+  for (let i = 0; i < ppm.length; i++) {
+    if (!Number.isFinite(ppm[i]) || !Number.isFinite(intensity[i]) || (i > 0 && ppm[i] <= ppm[i - 1])) {
+      fail("ppmは重複のない昇順または降順で、強度は有限の数値にしてください。");
+    }
+  }
+  return { ppm, intensity, label, frequency, raw, lo: ppm[0], hi: ppm[ppm.length - 1] };
+}
+
+function lowerBound(values, target) {
+  let lo = 0;
+  let hi = values.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (values[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+function chartBounds() {
+  return { left: 18, right: canvas.clientWidth - 19, top: 15, bottom: canvas.clientHeight - 43 };
+}
+
+function ppmAt(pixel, bounds) {
+  return state.hi - (pixel - bounds.left) * (state.hi - state.lo) / (bounds.right - bounds.left);
+}
+
+function xAt(ppm, bounds) {
+  return bounds.left + (state.hi - ppm) * (bounds.right - bounds.left) / (state.hi - state.lo);
+}
+
+function tickStep(span, desired) {
+  const target = span / desired;
+  const factor = 10 ** Math.floor(Math.log10(target));
+  return ([1, 2, 2.5, 5, 10].find(n => n * factor >= target) || 10) * factor;
+}
+
+function draw() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const bounds = chartBounds();
+  const { left, right, top, bottom } = bounds;
+  if (right <= left || bottom <= top) return;
+  const { data, lo, hi } = state;
+  const first = data ? Math.max(0, lowerBound(data.ppm, lo) - 1) : 0;
+  const last = data ? Math.min(data.ppm.length - 1, lowerBound(data.ppm, hi)) : 0;
+  let ymax = 0;
+  let ymin = 0;
+  if (data) {
+    for (let i = first; i <= last; i++) {
+      ymax = Math.max(ymax, data.intensity[i]);
+      ymin = Math.min(ymin, data.intensity[i]);
+    }
+  }
+  const height = (ymax - ymin) || 1;
+  ymax += height * .13;
+  ymin -= height * .08;
+  const yAt = value => top + (ymax - value) * (bottom - top) / (ymax - ymin);
+  ctx.lineWidth = 1;
+  ctx.font = "11px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#435e77";
+  const step = tickStep(hi - lo, Math.max(2, Math.floor((right - left) / 78)));
+  const precision = Math.min(8, Math.max(0, Math.ceil(-Math.log10(step)) + 1));
+  for (let i = Math.ceil(lo / step); i <= Math.floor(hi / step); i++) {
+    const ppm = i * step;
+    const x = xAt(ppm, bounds);
+    ctx.strokeStyle = "#e3ebf4";
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom + 4);
+    ctx.stroke();
+    ctx.fillText(String(Number(ppm.toFixed(precision))), x, bottom + 17);
+  }
+  ctx.strokeStyle = "#9eb0c5";
+  ctx.beginPath();
+  ctx.moveTo(left, bottom);
+  ctx.lineTo(right, bottom);
+  ctx.stroke();
+  ctx.fillText("δ (ppm)", (left + right) / 2, h - 8);
+  if (!data) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, top, right - left, bottom - top);
+  ctx.clip();
+  for (const region of state.integrals) {
+    const start = Math.max(left, xAt(region.hi, bounds));
+    const end = Math.min(right, xAt(region.lo, bounds));
+    if (end <= start) continue;
+    ctx.fillStyle = region === state.reference ? "#35a98b3d" : "#35a98b22";
+    ctx.fillRect(start, top, end - start, bottom - top);
+  }
+  ctx.strokeStyle = "#d6e0eb";
+  ctx.beginPath();
+  ctx.moveTo(left, yAt(0));
+  ctx.lineTo(right, yAt(0));
+  ctx.stroke();
+  drawTrace(data, first, last, bounds, yAt);
+  if (state.drag) {
+    const start = Math.min(state.drag.start, state.drag.current);
+    ctx.fillStyle = state.mode === "integrate" ? "#35a98b55" : "#276ed72d";
+    ctx.fillRect(start, top, Math.abs(state.drag.start - state.drag.current), bottom - top);
+  }
+  for (const i of state.peaks) {
+    const x = xAt(data.ppm[i], bounds);
+    const y = yAt(data.intensity[i]);
+    ctx.fillStyle = "#b44c22";
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (state.hover !== null) {
+    ctx.strokeStyle = "#8297b2";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(state.hover, top);
+    ctx.lineTo(state.hover, bottom);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawTrace(data, first, last, bounds, yAt) {
+  ctx.strokeStyle = "#154f9d";
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  if (last - first < (bounds.right - bounds.left) * 2) {
+    ctx.moveTo(xAt(data.ppm[first], bounds), yAt(data.intensity[first]));
+    for (let i = first + 1; i <= last; i++) ctx.lineTo(xAt(data.ppm[i], bounds), yAt(data.intensity[i]));
+  } else {
+    // Retain extrema within each pixel column so narrow peaks survive zooming out.
+    let column = null;
+    let min = 0;
+    let max = 0;
+    for (let i = first; i <= last; i++) {
+      const x = Math.round(xAt(data.ppm[i], bounds));
+      const y = yAt(data.intensity[i]);
+      if (x !== column) {
+        if (column !== null) {
+          ctx.lineTo(column, min);
+          ctx.lineTo(column, max);
+        } else {
+          ctx.moveTo(x, y);
+        }
+        column = x;
+        min = max = y;
+      } else {
+        min = Math.min(min, y);
+        max = Math.max(max, y);
+      }
+    }
+    ctx.lineTo(column, min);
+    ctx.lineTo(column, max);
+  }
+  ctx.stroke();
+}
+
+function formatPpm(value) {
+  return Number(value.toFixed(6)).toString();
+}
+
+function setStatus(message, error = false) {
+  byId("status").textContent = message;
+  byId("status").classList.toggle("error", error);
+}
+
+function renderPeaks() {
+  const list = byId("peaks");
+  list.replaceChildren();
+  if (!state.peaks.length) {
+    const hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = "波形上のピーク付近をクリックまたはタップ";
+    list.append(hint);
+  }
+  for (const i of state.peaks) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = state.data.ppm[i].toFixed(4) + " ppm";
+    list.append(chip);
+  }
+  byId("clear").disabled = !state.peaks.length;
+}
+
+function integrateRegion(data, lo, hi) {
+  const { ppm, intensity } = data;
+  const sample = x => {
+    const i = lowerBound(ppm, x);
+    if (ppm[i] === x) return intensity[i];
+    return intensity[i - 1] + (intensity[i] - intensity[i - 1]) * (x - ppm[i - 1]) / (ppm[i] - ppm[i - 1]);
+  };
+  const startY = sample(lo);
+  const endY = sample(hi);
+  const slope = (endY - startY) / (hi - lo);
+  let area = 0;
+  let previousX = lo;
+  let previousY = 0;
+  for (let i = lowerBound(ppm, lo); ppm[i] < hi; i++) {
+    const x = ppm[i];
+    const correctedY = intensity[i] - (startY + slope * (x - lo));
+    area += (previousY + correctedY) * (x - previousX) / 2;
+    previousX = x;
+    previousY = correctedY;
+  }
+  return area + previousY * (hi - previousX) / 2;
+}
+
+function setIntegralStatus(message = "", error = false) {
+  byId("integralStatus").textContent = message;
+  byId("integralStatus").classList.toggle("error", error);
+}
+
+function updateIntegralRatios() {
+  const hydrogens = byId("referenceH").valueAsNumber;
+  const reference = state.reference;
+  for (const [i, row] of Array.from(byId("integralRows").children).entries()) {
+    const ratio = reference && hydrogens > 0 && Number.isFinite(hydrogens)
+      ? state.integrals[i].area / reference.area * hydrogens : NaN;
+    row.cells[2].textContent = Number.isFinite(ratio) ? ratio.toFixed(2) : "—";
+  }
+}
+
+function renderIntegrals() {
+  const rows = byId("integralRows");
+  rows.replaceChildren();
+  for (const region of state.integrals) {
+    const row = rows.insertRow();
+    const label = formatPpm(region.hi) + " ～ " + formatPpm(region.lo);
+    row.insertCell().textContent = label;
+    row.insertCell().textContent = Number(region.area.toPrecision(6)).toString();
+    row.insertCell();
+    const reference = document.createElement("input");
+    reference.type = "radio";
+    reference.name = "integralReference";
+    reference.setAttribute("aria-label", label + " ppmを基準にする");
+    reference.disabled = region.area <= 0;
+    reference.checked = region === state.reference;
+    reference.addEventListener("change", () => {
+      state.reference = region;
+      updateIntegralRatios();
+      draw();
+    });
+    row.insertCell().append(reference);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "削除";
+    remove.setAttribute("aria-label", label + " ppmの積分を削除");
+    remove.addEventListener("click", () => {
+      state.integrals.splice(state.integrals.indexOf(region), 1);
+      if (region === state.reference) {
+        state.reference = state.integrals.find(item => item.area > 0) ?? null;
+        byId("referenceH").value = "1";
+      }
+      setIntegralStatus();
+      renderIntegrals();
+      draw();
+    });
+    row.insertCell().append(remove);
+  }
+  byId("integralTable").hidden = !state.integrals.length;
+  byId("referenceH").disabled = !state.reference;
+  updateIntegralRatios();
+}
+
+function addIntegral(lo, hi) {
+  const data = state.data;
+  if (!data || data.raw) return;
+  if (!(lo < hi && lo >= data.lo && hi <= data.hi)) {
+    setIntegralStatus("スペクトル内で左端を右端より大きく指定してください。", true);
+    return;
+  }
+  const {ppm} = data;
+  const first = lowerBound(ppm, lo);
+  const interior = ppm[first] === lo ? first + 1 : first;
+  if (!(ppm[interior] < hi)) {
+    setIntegralStatus("積分範囲が狭すぎます。ピーク全体を選んでください。", true);
+    return;
+  }
+  const area = integrateRegion(data, lo, hi);
+  if (!Number.isFinite(area)) {
+    setIntegralStatus("この範囲の面積を計算できませんでした。", true);
+    return;
+  }
+  const region = {lo, hi, area};
+  state.integrals.push(region);
+  if (!state.reference && area > 0) state.reference = region;
+  setIntegralStatus(area > 0 ? "" : "面積が正になりませんでした。範囲やベースラインを確認してください。");
+  renderIntegrals();
+  draw();
+}
+
+function setRange(lo, hi) {
+  const data = state.data;
+  const span = Math.min(hi - lo, data.hi - data.lo);
+  if (!(span > 0) || span < (data.hi - data.lo) / data.ppm.length * 2) return false;
+  state.lo = Math.max(data.lo, Math.min(lo, data.hi - span));
+  state.hi = state.lo + span;
+  byId("low").value = formatPpm(state.lo);
+  byId("high").value = formatPpm(state.hi);
+  draw();
+  return true;
+}
+
+function spectrumStatus() {
+  return state.data.raw ? "簡易FFT表示（位相補正なし）。ピーク位置の確認用です。" : "読み込み完了";
+}
+
+function show(data, name) {
+  state.data = data;
+  state.peaks = [];
+  state.integrals = [];
+  state.reference = null;
+  state.drag = null;
+  state.hover = null;
+  byId("position").textContent = "— ppm";
+  byId("fileName").textContent = name;
+  const mhz = data.frequency > 0 ? " · " + data.frequency.toFixed(2) + " MHz" : "";
+  byId("info").textContent = data.label + mhz + " · " + data.ppm.length.toLocaleString("ja") + " 点";
+  byId("empty").hidden = true;
+  for (const id of ["peak", "zoom", "out", "reset", "high", "low", "apply"]) byId(id).disabled = false;
+  for (const id of ["integrate", "integralHigh", "integralLow", "addIntegral"]) byId(id).disabled = data.raw;
+  if (data.raw && state.mode === "integrate") setMode("peak");
+  byId("integralHigh").value = "";
+  byId("integralLow").value = "";
+  byId("referenceH").value = "1";
+  byId("integralHint").textContent = data.raw
+    ? "積分するには、Deltaで位相・ベースラインを補正した処理済みJDFを開いてください。"
+    : "「積分」に切り替えてピーク全体をドラッグ。両端を結ぶ直線をベースラインにします。";
+  setIntegralStatus();
+  renderIntegrals();
+  setRange(data.lo, data.hi);
+  renderPeaks();
+  setStatus(spectrumStatus());
+}
+
+async function openFile(file) {
+  if (!file) return;
+  const request = ++latestLoad;
+  setStatus("読み込み中…");
+  try {
+    if (file.size > 32 * 1024 * 1024) fail("読み込めるファイルは32 MBまでです。");
+    const buffer = await file.arrayBuffer();
+    if (request !== latestLoad) return;
+    const signature = decoder.decode(new Uint8Array(buffer, 0, Math.min(8, buffer.byteLength)));
+    const data = signature === "JEOL.NMR" ? readJdf(buffer) : readText(decoder.decode(buffer));
+    show(data, file.name);
+  } catch (error) {
+    if (request === latestLoad) setStatus(error.message || "ファイルを読み込めませんでした。", true);
+  }
+}
+
+function makeDemo() {
+  const lines = [
+    [7.26, 0.46, .005], [4.13, .20, .0036], [4.112, .59, .0036], [4.094, .59, .0036],
+    [4.076, .20, .0036], [2.05, .70, .0045], [1.277, .26, .0035],
+    [1.259, .78, .0035], [1.241, .26, .0035], [0, .14, .003]
+  ];
+  const ppm = Float64Array.from({length: 16384}, (_, i) => -.4 + i * 8.7 / 16383);
+  const intensity = ppm.map(x => {
+    let y = .0014 * Math.sin(x * 281) + .0007 * Math.cos(x * 1271);
+    for (const [center, height, width] of lines) y += height / (1 + ((x - center) / width) ** 2);
+    return y;
+  });
+  return spectrum(ppm, intensity, "酢酸エチルの模擬スペクトル", 400);
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  canvas.dataset.mode = mode;
+  byId("peak").setAttribute("aria-pressed", mode === "peak");
+  byId("zoom").setAttribute("aria-pressed", mode === "zoom");
+  byId("integrate").setAttribute("aria-pressed", mode === "integrate");
+}
+
+function pickPeak(pixel, bounds) {
+  const { ppm, intensity } = state.data;
+  const center = ppmAt(pixel, bounds);
+  const radius = (state.hi - state.lo) * 11 / (bounds.right - bounds.left);
+  const left = Math.max(1, lowerBound(ppm, Math.max(state.lo, center - radius)));
+  const limit = Math.min(state.hi, center + radius);
+  const right = Math.min(ppm.length - 2, lowerBound(ppm, limit));
+  let best = -1;
+  let strongest = 0;
+  for (let i = left; i <= right; i++) {
+    if (ppm[i] <= limit && intensity[i] > strongest && intensity[i] >= intensity[i - 1] && intensity[i] > intensity[i + 1]) {
+      best = i;
+      strongest = intensity[i];
+    }
+  }
+  if (best === -1) {
+    setStatus("この位置の近くに正のピークが見つかりません。");
+    return;
+  }
+  if (!state.peaks.includes(best)) state.peaks.push(best);
+  setStatus(spectrumStatus());
+  byId("position").textContent = ppm[best].toFixed(4) + " ppm";
+  renderPeaks();
+  draw();
+}
+
+function pointerPixel(event, bounds) {
+  return Math.min(bounds.right, Math.max(bounds.left, event.clientX - canvas.getBoundingClientRect().left));
+}
+
+let pendingDraw = false;
+function scheduleDraw() {
+  if (pendingDraw) return;
+  pendingDraw = true;
+  requestAnimationFrame(() => {
+    pendingDraw = false;
+    draw();
+  });
+}
+
+byId("file").addEventListener("change", event => {
+  openFile(event.target.files[0]);
+  event.target.value = "";
+});
+byId("demo").addEventListener("click", () => {
+  latestLoad++;
+  show(makeDemo(), "酢酸エチル（模擬データ）");
+});
+const drop = byId("drop");
+for (const event of ["dragenter", "dragover"]) drop.addEventListener(event, e => {
+  e.preventDefault();
+  drop.classList.add("active");
+});
+drop.addEventListener("dragleave", e => {
+  if (!drop.contains(e.relatedTarget)) drop.classList.remove("active");
+});
+drop.addEventListener("drop", e => {
+  e.preventDefault();
+  drop.classList.remove("active");
+  openFile(e.dataTransfer.files[0]);
+});
+byId("peak").addEventListener("click", () => setMode("peak"));
+byId("zoom").addEventListener("click", () => setMode("zoom"));
+byId("integrate").addEventListener("click", () => {
+  setMode("integrate");
+  setStatus("ピークの両側がベースラインに戻るところまでドラッグしてください。");
+});
+byId("integralRange").addEventListener("submit", e => {
+  e.preventDefault();
+  addIntegral(byId("integralLow").valueAsNumber, byId("integralHigh").valueAsNumber);
+});
+byId("referenceH").addEventListener("input", () => {
+  const count = byId("referenceH").valueAsNumber;
+  const valid = count > 0 && Number.isFinite(count);
+  setIntegralStatus(valid ? "" : "基準の水素数には正の数を入れてください。", !valid);
+  updateIntegralRatios();
+});
+byId("reset").addEventListener("click", () => setRange(state.data.lo, state.data.hi));
+byId("out").addEventListener("click", () => {
+  const span = state.hi - state.lo;
+  setRange(state.lo - span / 2, state.hi + span / 2);
+});
+byId("clear").addEventListener("click", () => {
+  state.peaks = [];
+  renderPeaks();
+  draw();
+});
+byId("range").addEventListener("submit", e => {
+  e.preventDefault();
+  const lo = byId("low").valueAsNumber;
+  const hi = byId("high").valueAsNumber;
+  if (!(lo < hi) || lo > state.data.hi || hi < state.data.lo) {
+    setStatus("左端を右端より大きくし、スペクトルと重なる範囲を指定してください。", true);
+    return;
+  }
+  if (setRange(Math.max(lo, state.data.lo), Math.min(hi, state.data.hi))) {
+    setStatus(spectrumStatus());
+  } else {
+    setStatus("表示範囲が狭すぎます。", true);
+  }
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!state.data) return;
+  const bounds = chartBounds();
+  const pixel = pointerPixel(e, bounds);
+  if (state.drag?.id === e.pointerId) state.drag.current = pixel;
+  state.hover = pixel;
+  byId("position").textContent = ppmAt(pixel, bounds).toFixed(4) + " ppm";
+  scheduleDraw();
+});
+canvas.addEventListener("pointerleave", () => {
+  state.hover = null;
+  scheduleDraw();
+});
+canvas.addEventListener("pointerdown", e => {
+  if (!state.data || !e.isPrimary || e.button !== 0 || state.mode === "peak") return;
+  const bounds = chartBounds();
+  const y = e.clientY - canvas.getBoundingClientRect().top;
+  if (y < bounds.top || y > bounds.bottom) return;
+  const start = pointerPixel(e, bounds);
+  state.drag = {id: e.pointerId, start, current: start, mode: state.mode};
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointerup", e => {
+  if (!state.data || !e.isPrimary || e.button !== 0) return;
+  const bounds = chartBounds();
+  const localY = e.clientY - canvas.getBoundingClientRect().top;
+  const pixel = pointerPixel(e, bounds);
+  if (state.mode === "peak" && localY >= bounds.top && localY <= bounds.bottom) pickPeak(pixel, bounds);
+  if (state.drag?.id !== e.pointerId) return;
+  const {start, mode} = state.drag;
+  state.drag = null;
+  if (Math.abs(start - pixel) >= 7) {
+    const lo = Math.max(state.data.lo, ppmAt(Math.max(start, pixel), bounds));
+    const hi = Math.min(state.data.hi, ppmAt(Math.min(start, pixel), bounds));
+    if (mode === "integrate") addIntegral(lo, hi);
+    else setRange(lo, hi);
+  }
+  scheduleDraw();
+});
+canvas.addEventListener("pointercancel", () => {
+  state.drag = null;
+  scheduleDraw();
+});
+canvas.addEventListener("wheel", e => {
+  if (!state.data) return;
+  e.preventDefault();
+  if (state.drag) return;
+  const bounds = chartBounds();
+  const center = ppmAt(pointerPixel(e, bounds), bounds);
+  const factor = e.deltaY > 0 ? 1.25 : .8;
+  setRange(center - (center - state.lo) * factor, center + (state.hi - center) * factor);
+}, {passive: false});
+
+new ResizeObserver(scheduleDraw).observe(canvas);
+</script>
+</body>
+</html>
